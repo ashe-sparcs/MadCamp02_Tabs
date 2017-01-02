@@ -1,0 +1,15 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.example.q.madcamp01.MainActivity">
+    <item
+        android:id="@+id/action_facebook_login"
+        android:orderInCategory="100"
+        android:title="페이스북 로그인"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_facebook_load"
+        android:orderInCategory="100"
+        android:title="불러오기"
+        app:showAsAction="ifRoom" />
+</menu>
