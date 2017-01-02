@@ -7,8 +7,7 @@ package project2.madcamp02;
     public class Contact {
     private String title;
     private String phone;
-    private String name;
-    private int birth;
+    private String imgUrl;
     private boolean gender;
     private int mongoId;
 
@@ -16,9 +15,9 @@ package project2.madcamp02;
         title = Title;
     }
 
-    public Contact(String Title, String Phone){
+    public Contact(String Title, String imgUrl){
         title = Title;
-        phone = Phone;
+        this.imgUrl = imgUrl;
     }
 
     public String getTitle() {
@@ -31,14 +30,6 @@ package project2.madcamp02;
 
     public String getPhone() {
         return phone;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public int getBirth() {
-        return birth;
     }
 
     public boolean isGender() {
