@@ -9,15 +9,18 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
+import com.facebook.HttpMethod;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -81,48 +84,48 @@ public class Tabs extends AppCompatActivity implements TabLayout.OnTabSelectedLi
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-//        int id = item.getItemId();
-//
-//        //noinspection SimplifiableIfStatement
-//        if (id == R.id.action_facebook_login) {
-//            //login
-//            onFacebookLogin();
-//            return true;
-//        } else if (id == R.id.action_facebook_load) {
-//            //load
-//            new GraphRequest(
-//                AccessToken.getCurrentAccessToken(),
-//                "/me/taggable_friends",
-//                null,
-//                HttpMethod.GET,
-//                new GraphRequest.Callback() {
-//                    public void onCompleted(GraphResponse response) {
-//                        if (response == null) {
-//                            Log.d("what", "response null");
-//                        } else {
-//                            try {
-//                                Log.d("Response", response.toString());
-//                                Log.d("Access Token", AccessToken.getCurrentAccessToken().toString());
-//                                JSONObject object = response.getJSONObject();
-//                                JSONArray friendJsonArray = object.getJSONArray("data");
-//                                for (int i=0; i < friendJsonArray.length(); i++) {
-//                                    JSONObject jsonTemp = friendJsonArray.getJSONObject(i);
-//                                    Friend newFriend = new Friend(jsonTemp.getString("name"),
-//                                        jsonTemp.getJSONObject("picture").getJSONObject("data").getString("url"),
-//                                        jsonTemp.getJSONObject("picture").getJSONObject("data").getBoolean("is_silhouette"));
-//                                    friendList.add(newFriend);
-//                                    newFriend.printSelf();
-//                                }
-//                                Log.d("response", friendList.toString());
-//                            } catch (Exception e) {
-//                                e.printStackTrace();
-//                            }
-//                        }
-//                    }
-//                }
-//            ).executeAsync();
-//            return true;
-//        }
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_facebook_login) {
+            //login
+            onFacebookLogin();
+            return true;
+        } else if (id == R.id.action_facebook_load) {
+            //load
+            new GraphRequest(
+                AccessToken.getCurrentAccessToken(),
+                "/me/taggable_friends",
+                null,
+                HttpMethod.GET,
+                new GraphRequest.Callback() {
+                    public void onCompleted(GraphResponse response) {
+                        if (response == null) {
+                            Log.d("what", "response null");
+                        } else {
+                            try {
+                                Log.d("Response", response.toString());
+                                Log.d("Access Token", AccessToken.getCurrentAccessToken().toString());
+                                JSONObject object = response.getJSONObject();
+                                JSONArray friendJsonArray = object.getJSONArray("data");
+                                for (int i=0; i < friendJsonArray.length(); i++) {
+                                    JSONObject jsonTemp = friendJsonArray.getJSONObject(i);
+                                    Friend newFriend = new Friend(jsonTemp.getString("name"),
+                                        jsonTemp.getJSONObject("picture").getJSONObject("data").getString("url"),
+                                        jsonTemp.getJSONObject("picture").getJSONObject("data").getBoolean("is_silhouette"));
+                                    friendList.add(newFriend);
+                                    newFriend.printSelf();
+                                }
+                                Log.d("response", friendList.toString());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+            ).executeAsync();
+            return true;
+        }
         return super.onOptionsItemSelected(item);
     }
 

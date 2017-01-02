@@ -24,7 +24,6 @@ import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
-import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
@@ -38,8 +37,6 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static com.facebook.FacebookSdk.getApplicationContext;
 
 
 /**
@@ -75,15 +72,15 @@ public class Tab1 extends Fragment {
         ContactAdapter dataAdapter = new ContactAdapter(contacts);
         recyclerView.setAdapter(dataAdapter);
         getView().findViewById(R.id.get_contacts).setOnClickListener(mClickListener);
-        getView().findViewById(R.id.button2).setOnClickListener(m2ClickListener);
-        getView().findViewById(R.id.button3).setOnClickListener(m3ClickListener);
+//        getView().findViewById(R.id.button2).setOnClickListener(m2ClickListener);
+//        getView().findViewById(R.id.button3).setOnClickListener(m3ClickListener);
     }
 
     //Overriden method onCreateView
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        FacebookSdk.sdkInitialize(getApplicationContext()); // SDK 초기화 (setContentView 보다 먼저 실행되어야합니다. 안그럼 에러납니다.)
+//        FacebookSdk.sdkInitialize(getApplicationContext()); // SDK 초기화 (setContentView 보다 먼저 실행되어야합니다. 안그럼 에러납니다.)
         View rootView = inflater.inflate(R.layout.tab1, container, false);
 
         //Returning the layout file after inflating
