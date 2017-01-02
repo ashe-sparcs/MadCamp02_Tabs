@@ -31,6 +31,7 @@ import static project2.madcamp02.Tab1.callbackmanager;
 
 public class Tabs extends AppCompatActivity implements TabLayout.OnTabSelectedListener {
     private ArrayList<Friend> friendList = new ArrayList<>();
+    Menu menuGlobal;
 
     //This is our tabLayout
     private TabLayout tabLayout;
@@ -76,6 +77,10 @@ public class Tabs extends AppCompatActivity implements TabLayout.OnTabSelectedLi
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        menuGlobal = menu;
+        if (AccessToken.getCurrentAccessToken() != null) {
+            menu.findItem(R.id.action_facebook_login).setTitle("페이스북 로그인됨");
+        }
         return true;
     }
 
@@ -89,7 +94,9 @@ public class Tabs extends AppCompatActivity implements TabLayout.OnTabSelectedLi
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_facebook_login) {
             //login
-            onFacebookLogin();
+            if (AccessToken.getCurrentAccessToken() == null) {
+                onFacebookLogin();
+            }
             return true;
         } else if (id == R.id.action_facebook_load) {
             //load
@@ -176,6 +183,8 @@ public class Tabs extends AppCompatActivity implements TabLayout.OnTabSelectedLi
                                         String str_id = json.getString("id");
                                         String str_firstname = json.getString("first_name");
                                         String str_lastname = json.getString("last_name");
+                                        menuGlobal.findItem(R.id.action_facebook_login).
+                                                setTitle("페이스북 로그인됨");
 
                                     } catch (JSONException e) {
                                         e.printStackTrace();
