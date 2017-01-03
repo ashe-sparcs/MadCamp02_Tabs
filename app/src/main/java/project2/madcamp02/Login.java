@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -39,28 +40,35 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class Login extends AppCompatActivity {
 
     private ArrayList<Friend> friendList = new ArrayList<>();
     private ArrayList<String> contactJsonList = new ArrayList<>();
+    String str_id;
 
     // Creating Facebook CallbackManager Value
     public static CallbackManager callbackmanager;
 
     public final int PERMISSIONS_REQUEST_READ_CONTACTS = 100;
+    public final int PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 101;
 
     private String loginResultJson;
-//    private SharedPreferences preferences = getSharedPreferences(contactJsonList.)
+    SharedPreferences preferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         FacebookSdk.sdkInitialize(getApplicationContext()); // SDK 초기화 (setContentView 보다 먼저 실행되어야합니다. 안그럼 에러납니다.)
+        preferences = getSharedPreferences("user", MODE_PRIVATE);
+        askContactsPermission();
+        askStoragePermission();
 
         setContentView(R.layout.activity_login);
 
@@ -99,19 +107,17 @@ public class Login extends AppCompatActivity {
                                         String jsonresult = String.valueOf(json);
                                         loginResultJson = String.valueOf(json);
                                         System.out.println("JSON Result"+jsonresult);
-                                        String str_id = json.getString("id");
-
-                                        if (json.has("email")) {
-                                            String str_email = json.getString("email");
+                                        if (json.has("id")) {
+                                            str_id = json.getString("id");
                                         }else{
-                                            String str_email = str_id+"@facebook.com";
+                                            str_id = "none";
                                         }
-                                        if (json.has("first_name")) {
-                                            String str_email = json.getString("first_name");
-                                        }
-                                        if (json.has("last_name")) {
-                                            String str_email = json.getString("last_name");
-                                        }
+//                                        if (json.has("first_name")) {
+//                                            String str_email = json.getString("first_name");
+//                                        }
+//                                        if (json.has("last_name")) {
+//                                            String str_email = json.getString("last_name");
+//                                        }
 
                                     } catch (JSONException e) {
                                         e.printStackTrace();
@@ -152,7 +158,6 @@ public class Login extends AppCompatActivity {
 
     Button.OnClickListener m3ClickListener = new View.OnClickListener(){
         public void onClick(View v){
-            askContactsPermission();
             GetFriendTask friendTask = new GetFriendTask();
             friendTask.execute();
 
@@ -239,7 +244,7 @@ public class Login extends AppCompatActivity {
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            mProgressDialog = ProgressDialog.show(Login.this,"",
+            mProgressDialog = ProgressDialog.show(Login.this, "",
                     "페이스북 연락처를 가져오고 있습니다.", false);
         }
 
@@ -247,6 +252,43 @@ public class Login extends AppCompatActivity {
         protected Void doInBackground(Void... v) {
             // db에 넣기
             // 이미 회원이면 디비에 집어넣지 않는다.
+            String mongo_id = preferences.getString("mongo_id", "none");
+            JSONObject restJson = new JSONObject();
+            try {
+                restJson.put("mongo_id", mongo_id);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            if (!Objects.equals("none", str_id)) {
+                try {
+                    restJson.put("facebook_id", str_id);
+                    restJson.put("isFacebook", "true");
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                try {
+                    restJson.put("isFacebook", "false");
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+            Log.d("restJson", restJson.toString());
+            Rest userAddRest = new Rest("http://143.248.234.144:8080/users", "POST", restJson.toString());
+            String restResult = null;
+            try {
+                restResult = userAddRest.Post();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                JSONObject restResultJson = new JSONObject(restResult);
+                SharedPreferences.Editor edit = preferences.edit();
+                edit.putString("mongo_id", restResultJson.getString("_id"));
+                edit.apply();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
 
             new GraphRequest(
                 AccessToken.getCurrentAccessToken(),
@@ -255,26 +297,34 @@ public class Login extends AppCompatActivity {
                 HttpMethod.GET,
                 new GraphRequest.Callback() {
                     public void onCompleted(GraphResponse response) {
-                        if (response != null) {
-                            try {
-                                Log.d("response", response.toString());
-                                JSONObject object = response.getJSONObject();
-                                JSONArray friendJsonArray = object.getJSONArray("data");
-                                for (int i=0; i < friendJsonArray.length(); i++) {
-                                    JSONObject jsonTemp = friendJsonArray.getJSONObject(i);
-                                    JSONObject newJson = new JSONObject();
-                                    newJson.put("name", jsonTemp.getString("name"));
-                                    newJson.put("url", jsonTemp.getJSONObject("picture").getJSONObject("data").getString("url"));
-                                    InputStream in = new java.net.URL(newJson.getString("url")).openStream();
-                                    Bitmap profileBitmap = BitmapFactory.decodeStream(in);
-                                    newJson.put("image", encodeToBase64(profileBitmap, Bitmap.CompressFormat.JPEG, 100));
-                                    contactJsonList.add(newJson.toString());
-                                }
-                                Log.d("response", contactJsonList.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                    if (response != null) {
+                        try {
+                            Log.d("response", response.toString());
+                            JSONObject object = response.getJSONObject();
+                            JSONArray friendJsonArray = object.getJSONArray("data");
+                            for (int i=0; i < friendJsonArray.length(); i++) {
+                                JSONObject jsonTemp = friendJsonArray.getJSONObject(i);
+                                JSONObject newJson = new JSONObject();
+                                newJson.put("name", jsonTemp.getString("name"));
+                                newJson.put("url", jsonTemp.getJSONObject("picture").getJSONObject("data").getString("url"));
+                                InputStream in = new java.net.URL(newJson.getString("url")).openStream();
+                                Bitmap profileBitmap = BitmapFactory.decodeStream(in);
+                                newJson.put("image", encodeToBase64(profileBitmap, Bitmap.CompressFormat.JPEG, 100));
+                                contactJsonList.add(newJson.toString());
+                                JSONObject restJson = new JSONObject();
+                                restJson.put("whose", preferences.getString("mongo_id", "none"));
+                                restJson.put("fromWhere", "facebook");
+                                restJson.put("name", jsonTemp.getString("name"));
+                                Log.d("restJson", restJson.toString());
+                                Rest friendAddRest = new Rest("http://143.248.234.144:8080/friends/" +
+                                        preferences.getString("mongo_id", "none"), "POST", restJson.toString());
+                                String restResult = friendAddRest.Post();
                             }
+                            Log.d("response", contactJsonList.toString());
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
+                    }
                     }
                 }
             ).executeAndWait();
@@ -290,6 +340,7 @@ public class Login extends AppCompatActivity {
         protected void onPostExecute(Void v) {
             // doInBackground 에서 받아온 total 값 사용 장소
             mProgressDialog.dismiss();
+            Log.d("isshowing", String.valueOf(mProgressDialog.isShowing()));
             for (int i = 0; i < contactJsonList.size(); i++) {
                 JSONObject jsonTemp = null;
                 try {
@@ -433,6 +484,15 @@ public class Login extends AppCompatActivity {
                 checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, PERMISSIONS_REQUEST_READ_CONTACTS);
             //After this point you wait for callback in onRequestPermissionsResult(int, String[], int[]) overriden method
+        }
+    }
+
+    private void askStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
+            //After this point you wait for callback in onRequestPermissionsResult(int, String[], int[]) overriden method
+            return;
         }
     }
     @Override

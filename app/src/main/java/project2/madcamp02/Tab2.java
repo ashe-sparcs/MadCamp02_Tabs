@@ -1,166 +1,139 @@
 package project2.madcamp02;
 
+import android.app.Activity;
 import android.content.Context;
+import android.database.Cursor;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.BaseAdapter;
+import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
-import android.widget.TextView;
+import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.koushikdutta.async.future.Future;
+import com.koushikdutta.async.future.FutureCallback;
+import com.koushikdutta.ion.Ion;
+import com.koushikdutta.ion.Response;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.RandomAccessFile;
 
 /**
- * Created by yk 12/26/2016
+ * Created by koush on 9/4/13.
  */
-
 public class Tab2 extends Fragment {
+    private MyAdapter mAdapter;
 
-    private GridView mGridView = null;
-    private MyAdapter mGridAdapter = null;
-    private List<Item> items = new ArrayList<>();
-    GridView gd;
-
-    //Overriden method onCreateView
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-
-        //Returning the layout file after inflating
-        //Change R.layout.tab1 in you classes
-        View view = inflater.inflate(R.layout.tab2, container, false);
-
-        //add item
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-        items.add(new Item("미나", R.drawable.basic));
-
-
-
-
-        mGridView = (GridView) view.findViewById(R.id.gridView1);
-        mGridAdapter = new MyAdapter((getActivity()));
-        final ImageView imgzoom = (ImageView) view.findViewById(R.id.imageZoom);
-        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                int a = (int) mGridAdapter.getItemId(position);
-//                Log.v("흔적","getItemId is");
-                imgzoom.setImageResource(a);
-                imgzoom.setVisibility(View.VISIBLE);
-                imgzoom.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        imgzoom.setVisibility(View.INVISIBLE);
-                    }
-                });
-            }
-        });
-
-        mGridView.setAdapter(mGridAdapter);
-        return view;
-    }
-
-    public class MyAdapter extends BaseAdapter {
-
-
-        private LayoutInflater inflator;
-
+    // Adapter to populate and imageview from an url contained in the array adapter
+    private class MyAdapter extends ArrayAdapter<String> {
         public MyAdapter(Context context) {
-            // TODO Auto-generated constructor stub
-            inflator = LayoutInflater.from(context);
-        }
-
-        @Override
-        public int getCount() {
-            // TODO Auto-generated method stub
-            return items.size();
-        }
-
-        @Override
-        public Object getItem(int position) {
-            // TODO Auto-generated method stub
-            return items.get(position);
-        }
-
-        public String getItemName(int position) {
-            return items.get(position).name;
-        }
-
-        @Override
-        public long getItemId(int position) {
-            // TODO Auto-generated method stub
-            return items.get(position).drawableId;
-        }
-
-        public void changeItem(int position, int rid) {
-            Item it = items.get(position);
-            String name2 = it.name;
-            Item cit = new Item(name2, rid);
-            items.set(position, cit);
-
-
+            super(context, 0);
         }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            // TODO Auto-generated method stub
-            View v = convertView;
-            ImageView img1;
+            // see if we need to load more to get 40, otherwise populate the adapter
+            if (position > getCount() - 4)
+                loadMore();
 
+            if (convertView == null)
+                convertView = getActivity().getLayoutInflater().inflate(R.layout.grid_item, null);
 
-            TextView txt1;
-            if (v == null) {
-                v = inflator.inflate(R.layout.grid_item, parent, false);
-                v.setTag(R.id.picture, v.findViewById(R.id.picture));
+            // find the image view
+            final ImageView iv = (ImageView) convertView.findViewById(R.id.picture);
 
+            // select the image view
+            Ion.with(iv)
+                    .centerCrop()
+                    .placeholder(R.drawable.basic)
+                    .load(getItem(position));
 
-                v.setTag(R.id.text, v.findViewById(R.id.text));
+            return convertView;
+        }
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View rootView = inflater.inflate(R.layout.tab2, container, false);
+        Ion.getDefault(getActivity()).configure().setLogging("ion-sample", Log.DEBUG);
+
+        int cols = getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().densityDpi * 2;
+        GridView view = (GridView) rootView.findViewById(R.id.results);
+        view.setNumColumns(cols);
+        mAdapter = new MyAdapter(getActivity());
+        view.setAdapter(mAdapter);
+        return rootView;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        loadMore();
+        //doUpload();
+    }
+
+    Cursor mediaCursor;
+    public void loadMore() {
+        if (mediaCursor == null) {
+            mediaCursor = getActivity().getContentResolver().query(MediaStore.Files.getContentUri("external"), null, null, null, null);
+        }
+
+        int loaded = 0;
+        while (mediaCursor.moveToNext() && loaded < 10) {
+            // get the media type. ion can show images for both regular images AND video.
+            int mediaType = mediaCursor.getInt(mediaCursor.getColumnIndex(MediaStore.Files.FileColumns.MEDIA_TYPE));
+            if (mediaType != MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
+                    && mediaType != MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) {
+                continue;
             }
 
-            img1 = (ImageView) v.findViewById(R.id.picture);
+            loaded++;
 
+            String uri = mediaCursor.getString(mediaCursor.getColumnIndex(MediaStore.Files.FileColumns.DATA));
+            File file = new File(uri);
+            // turn this into a file uri if necessary/possible
+            if (file.exists())
+                mAdapter.add(file.toURI().toString());
+            else
+                mAdapter.add(uri);
+        }
+    }
 
-            txt1 = (TextView) v.findViewById(R.id.text);
+    /*
+    void doUpload() {
+        for (int i = 0; i < mAdapter.getCount(); i++) {
+            File f = new File(mAdapter.getItem(i));
 
-
-            Item item = (Item) getItem(position);
-
-            img1.setImageResource(item.drawableId);
-
-
-            txt1.setText(item.name);
-
-
-            return v;
+            // this is a 180MB zip file to test with
+            Future uploading = Ion.with(Tab2.this)
+                    .load("http://143.248.234.144:8080/images/upload")
+                    .setMultipartFile("image", f)
+                    .asString()
+                    .withResponse()
+                    .setCallback(new FutureCallback<Response<String>>() {
+                        @Override
+                        public void onCompleted(Exception e, Response<String> result) {
+                            try {
+                                JSONObject jobj = new JSONObject(result.getResult());
+                                Toast.makeText(
+                                        getActivity(), jobj.getString("responses"),
+                                        Toast.LENGTH_SHORT)
+                                        .show();
+                            } catch (JSONException e1) {
+                                e1.printStackTrace();
+                            }
+                        }
+                    });
         }
 
     }
-
-
-
-    private class Item {
-        final String name;
-        final int drawableId;
-        int chosen;
-
-        Item(String name, int drawableId) {
-            this.name = name;
-            this.drawableId = drawableId;
-        }
-    }
+    */
 }
