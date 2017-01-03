@@ -1,15 +1,20 @@
 package project2.madcamp02;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,18 +23,23 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
+import com.facebook.HttpMethod;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,6 +47,7 @@ import java.util.List;
 public class Login extends AppCompatActivity {
 
     private ArrayList<Friend> friendList = new ArrayList<>();
+    private ArrayList<String> contactJsonList = new ArrayList<>();
 
     // Creating Facebook CallbackManager Value
     public static CallbackManager callbackmanager;
@@ -44,6 +55,7 @@ public class Login extends AppCompatActivity {
     public final int PERMISSIONS_REQUEST_READ_CONTACTS = 100;
 
     private String loginResultJson;
+//    private SharedPreferences preferences = getSharedPreferences(contactJsonList.)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,13 +71,6 @@ public class Login extends AppCompatActivity {
 
         // Fetch the empty view from the layout and set it on
         // the new recycler view
-    }
-
-    @Override
-    protected void onRestart() {
-        super.onRestart();
-        // facebook에서 불러오고, 주소록에서 불러오고, 그것들을 서버에 보내고 어레이에 저장.
-
     }
 
     // Private method to handle Facebook login and callback
@@ -94,18 +99,27 @@ public class Login extends AppCompatActivity {
                                         String jsonresult = String.valueOf(json);
                                         loginResultJson = String.valueOf(json);
                                         System.out.println("JSON Result"+jsonresult);
-
-                                        String str_email = json.getString("email");
                                         String str_id = json.getString("id");
-                                        String str_firstname = json.getString("first_name");
-                                        String str_lastname = json.getString("last_name");
+
+                                        if (json.has("email")) {
+                                            String str_email = json.getString("email");
+                                        }else{
+                                            String str_email = str_id+"@facebook.com";
+                                        }
+                                        if (json.has("first_name")) {
+                                            String str_email = json.getString("first_name");
+                                        }
+                                        if (json.has("last_name")) {
+                                            String str_email = json.getString("last_name");
+                                        }
 
                                     } catch (JSONException e) {
                                         e.printStackTrace();
                                     }
                                 }
                             }
-                            }).executeAsync();
+                        }
+                    ).executeAsync();
                 }
 
                 @Override
@@ -133,80 +147,17 @@ public class Login extends AppCompatActivity {
         public void onClick(View v) {
             // Call private method
             onFblogin();
-
         }
     };
 
     Button.OnClickListener m3ClickListener = new View.OnClickListener(){
         public void onClick(View v){
-            Intent intent = new Intent(Login.this, Tabs.class);
-            intent.putExtra("login result", loginResultJson);
-            startActivity(intent);
-            finish();
-            /*
-            new GraphRequest(
-                    AccessToken.getCurrentAccessToken(),
-                    "/me/taggable_friends",
-                    null,
-                    HttpMethod.GET,
-                    new GraphRequest.Callback() {
-                public void onCompleted(GraphResponse response) {
-                    if (response == null) {
-                        Log.d("what", "response null");
-                    } else {
-                        try {
-                            JSONObject object = response.getJSONObject();
-                            JSONArray friendJsonArray = object.getJSONArray("data");
-                            for (int i=0; i < friendJsonArray.length(); i++) {
-                                JSONObject jsonTemp = friendJsonArray.getJSONObject(i);
-                                Friend newFriend = new Friend(jsonTemp.getString("name"),
-                                        jsonTemp.getJSONObject("picture").getJSONObject("data").getString("url"),
-                                        jsonTemp.getJSONObject("picture").getJSONObject("data").getBoolean("is_silhouette"));
-                                friendList.add(newFriend);
-                                newFriend.printSelf();
-                            }
-                            Log.d("response", friendList.toString());
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }
-            ).executeAsync();
-            */
+            askContactsPermission();
+            GetFriendTask friendTask = new GetFriendTask();
+            friendTask.execute();
 
         }
     };
-
-    /**
-     * Show the contacts in the ListView.
-     */
-    private void showContacts() {
-        // Check the SDK version and whether the permission is already granted or not.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, PERMISSIONS_REQUEST_READ_CONTACTS);
-            //After this point you wait for callback in onRequestPermissionsResult(int, String[], int[]) overriden method
-        } else {
-            // Android version is lesser than 6.0 or the permission is already granted.
-//            List<String> contacts = getContactNames();
-//            ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, contacts);
-//            lstNames.setAdapter(adapter);
-            //DB에 데이터 추가
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                                           int[] grantResults) {
-        if (requestCode == PERMISSIONS_REQUEST_READ_CONTACTS) {
-            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission is granted
-                showContacts();
-            } else {
-                Toast.makeText(this, "Until you grant the permission, we cannot display the names", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
 
     /**
      * Read the name of all the contacts.
@@ -281,5 +232,219 @@ public class Login extends AppCompatActivity {
         }
     }
 
-    // More activity code here...
+    public class GetFriendTask extends AsyncTask<Void, Contact, Void> {
+
+        private ProgressDialog mProgressDialog = new ProgressDialog(Login.this);
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            mProgressDialog = ProgressDialog.show(Login.this,"",
+                    "페이스북 연락처를 가져오고 있습니다.", false);
+        }
+
+        @Override
+        protected Void doInBackground(Void... v) {
+            // db에 넣기
+            // 이미 회원이면 디비에 집어넣지 않는다.
+
+            new GraphRequest(
+                AccessToken.getCurrentAccessToken(),
+                "/me/taggable_friends",
+                null,
+                HttpMethod.GET,
+                new GraphRequest.Callback() {
+                    public void onCompleted(GraphResponse response) {
+                        if (response != null) {
+                            try {
+                                Log.d("response", response.toString());
+                                JSONObject object = response.getJSONObject();
+                                JSONArray friendJsonArray = object.getJSONArray("data");
+                                for (int i=0; i < friendJsonArray.length(); i++) {
+                                    JSONObject jsonTemp = friendJsonArray.getJSONObject(i);
+                                    JSONObject newJson = new JSONObject();
+                                    newJson.put("name", jsonTemp.getString("name"));
+                                    newJson.put("url", jsonTemp.getJSONObject("picture").getJSONObject("data").getString("url"));
+                                    InputStream in = new java.net.URL(newJson.getString("url")).openStream();
+                                    Bitmap profileBitmap = BitmapFactory.decodeStream(in);
+                                    newJson.put("image", encodeToBase64(profileBitmap, Bitmap.CompressFormat.JPEG, 100));
+                                    contactJsonList.add(newJson.toString());
+                                }
+                                Log.d("response", contactJsonList.toString());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+            ).executeAndWait();
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Contact... contactArgs) {
+
+        }
+
+        @Override
+        protected void onPostExecute(Void v) {
+            // doInBackground 에서 받아온 total 값 사용 장소
+            mProgressDialog.dismiss();
+            for (int i = 0; i < contactJsonList.size(); i++) {
+                JSONObject jsonTemp = null;
+                try {
+                    jsonTemp = new JSONObject(contactJsonList.get(i));
+                    Log.d("name", jsonTemp.getString("name"));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+            GetContactTask getContactTask = new GetContactTask();
+            getContactTask.execute();
+            /*
+            GetContactTask getContactTask = new GetContactTask();
+            getContactTask.execute();
+            */
+        }
+    }
+
+    public class GetContactTask extends AsyncTask<Void, Contact, Void> {
+        private ProgressDialog mProgressDialog = new ProgressDialog(Login.this);
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            if (!mProgressDialog.isShowing()) {
+                mProgressDialog = ProgressDialog.show(Login.this, "",
+                        "핸드폰 연락처를 가져오고 있습니다.", false);
+            }
+
+        }
+
+        @Override
+        protected Void doInBackground(Void... v) {
+            String[] arrProjection = {
+                    ContactsContract.Contacts._ID,
+                    ContactsContract.Contacts.DISPLAY_NAME,
+            };
+            String[] arrPhoneProjection = {
+                    ContactsContract.CommonDataKinds.Phone.NUMBER
+            };
+            // get user list
+            Cursor clsCursor = getContentResolver().query(
+                    ContactsContract.Contacts.CONTENT_URI, arrProjection,
+                    ContactsContract.Contacts.HAS_PHONE_NUMBER + "=1",
+                    null, null
+            );
+
+            while (clsCursor.moveToNext()) {
+                String strContactId = clsCursor.getString(0);
+                // phone number
+                Cursor clsPhoneCursor = getContentResolver().query (
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        arrPhoneProjection,
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + strContactId,
+                        null, null
+                );
+
+                while( clsPhoneCursor.moveToNext() ) {
+                    // add name, number
+                    Contact addedItem = new Contact(clsCursor.getString(1), clsPhoneCursor.getString(0), null, null, null);
+                    JSONObject newJson = new JSONObject();
+                    try {
+                        newJson.put("name", clsCursor.getString(1));
+                        newJson.put("phone", clsPhoneCursor.getString(0));
+//                        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.basic);
+//                        newJson.put("image", encodeToBase64(bitmap, Bitmap.CompressFormat.JPEG, 10));
+                        contactJsonList.add(newJson.toString());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+                clsPhoneCursor.close();
+            }
+            clsCursor.close();
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Contact... contactArgs) {
+            // 파일 다운로드 퍼센티지 표시 작업
+            /*
+            contacts.add(contactArgs[0]);
+            m_adapter.notifyDataSetChanged();
+            */
+        }
+
+        @Override
+        protected void onPostExecute(Void v) {
+            // doInBackground 에서 받아온 total 값 사용 장소
+            mProgressDialog.dismiss();
+            Intent intent = new Intent(Login.this, Tabs.class);
+            intent.putExtra("login result", loginResultJson);
+            intent.putExtra("facebook result", contactJsonList);
+            startActivity(intent);
+            finish();
+        }
+    }
+
+    private class DownloadImageTask extends AsyncTask<ArrayList<String>, Bitmap, Void> {
+
+        public DownloadImageTask() {
+        }
+
+        protected Void doInBackground(ArrayList<String>... urls) {
+            ArrayList<String> urldisplay = urls[0];
+            Bitmap mIcon11 = null;
+            try {
+                for (int i=0; i < urldisplay.size(); i++) {
+                    Log.d("url", urldisplay.get(i));
+                    InputStream in = new java.net.URL(urldisplay.get(i)).openStream();
+                    mIcon11 = BitmapFactory.decodeStream(in);
+                    publishProgress(mIcon11);
+                }
+            } catch (Exception e) {
+                Log.e("Error", e.getMessage());
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        protected void onProgressUpdate(Bitmap... bm) {
+
+        }
+
+        protected void onPostExecute(Void v) {
+
+        }
+    }
+
+    //이미지 인코딩
+    public static String encodeToBase64(Bitmap image, Bitmap.CompressFormat compressFormat, int quality)
+    {
+        ByteArrayOutputStream byteArrayOS = new ByteArrayOutputStream();
+        image.compress(compressFormat, quality, byteArrayOS);
+        return Base64.encodeToString(byteArrayOS.toByteArray(), Base64.DEFAULT);
+    }
+
+    private void askContactsPermission() {
+        // Check the SDK version and whether the permission is already granted or not.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, PERMISSIONS_REQUEST_READ_CONTACTS);
+            //After this point you wait for callback in onRequestPermissionsResult(int, String[], int[]) overriden method
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        if (requestCode == PERMISSIONS_REQUEST_READ_CONTACTS) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission is granted
+                askContactsPermission();
+            } else {
+                Toast.makeText(this, "연락처 권한 주세영", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 }
