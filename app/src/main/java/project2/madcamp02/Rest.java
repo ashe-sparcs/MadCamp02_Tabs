@@ -10,12 +10,12 @@ import okhttp3.OkHttpClient;
  */
 
 public class Rest {
-    private String url;
+    private String url = "http://143.248.234.144:8080";
     private String method;
     private String body;
 
     public Rest(String url, String method, String body) {
-        this.url = url;
+        this.url += url;
         this.method = method;
         this.body = body;
     }
@@ -37,13 +37,13 @@ public class Rest {
     }
     public String Delete() throws IOException{
         okhttp3.RequestBody bodyindelete = okhttp3.RequestBody.create(JSON, body);
-        okhttp3.Request request = new okhttp3.Request.Builder() .url(url) .post(bodyindelete) .build();
+        okhttp3.Request request = new okhttp3.Request.Builder() .url(url) .delete(bodyindelete) .build();
         okhttp3.Response response = client.newCall(request).execute();
         return response.body().string();
     }
     public String Put() throws IOException{
         okhttp3.RequestBody bodyinput = okhttp3.RequestBody.create(JSON, body);
-        okhttp3.Request request = new okhttp3.Request.Builder() .url(url) .post(bodyinput) .build();
+        okhttp3.Request request = new okhttp3.Request.Builder() .url(url) .put(bodyinput) .build();
         okhttp3.Response response = client.newCall(request).execute();
         return response.body().string();
     }

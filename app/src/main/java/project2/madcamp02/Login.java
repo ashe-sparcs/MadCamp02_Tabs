@@ -21,6 +21,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,14 +35,20 @@ import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
+import com.koushikdutta.async.future.Future;
+import com.koushikdutta.async.future.FutureCallback;
+import com.koushikdutta.ion.Ion;
+import com.koushikdutta.ion.ProgressCallback;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,6 +69,10 @@ public class Login extends AppCompatActivity {
     private String loginResultJson;
     SharedPreferences preferences;
 
+    Future<File> uploading;
+
+    ProgressBar progressBar;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -76,6 +87,8 @@ public class Login extends AppCompatActivity {
         findViewById(R.id.facebook_login).setOnClickListener(m2ClickListener);
 
         findViewById(R.id.no_facebook).setOnClickListener(m3ClickListener);
+
+        progressBar = new ProgressBar(Login.this, null, android.R.attr.progressBarStyleSmall);
 
         // Fetch the empty view from the layout and set it on
         // the new recycler view
@@ -274,7 +287,7 @@ public class Login extends AppCompatActivity {
                 }
             }
             Log.d("restJson", restJson.toString());
-            Rest userAddRest = new Rest("http://143.248.234.144:8080/users", "POST", restJson.toString());
+            Rest userAddRest = new Rest("/users", "POST", restJson.toString());
             String restResult = null;
             try {
                 restResult = userAddRest.Post();
@@ -316,7 +329,7 @@ public class Login extends AppCompatActivity {
                                 restJson.put("fromWhere", "facebook");
                                 restJson.put("name", jsonTemp.getString("name"));
                                 Log.d("restJson", restJson.toString());
-                                Rest friendAddRest = new Rest("http://143.248.234.144:8080/friends/" +
+                                Rest friendAddRest = new Rest("/friends/" +
                                         preferences.getString("mongo_id", "none"), "POST", restJson.toString());
                                 String restResult = friendAddRest.Post();
                             }
@@ -431,42 +444,15 @@ public class Login extends AppCompatActivity {
         protected void onPostExecute(Void v) {
             // doInBackground 에서 받아온 total 값 사용 장소
             mProgressDialog.dismiss();
+            /*
+            UploadImageTask uploadImageTask = new UploadImageTask();
+            uploadImageTask.execute();
+            */
             Intent intent = new Intent(Login.this, Tabs.class);
             intent.putExtra("login result", loginResultJson);
             intent.putExtra("facebook result", contactJsonList);
             startActivity(intent);
             finish();
-        }
-    }
-
-    private class DownloadImageTask extends AsyncTask<ArrayList<String>, Bitmap, Void> {
-
-        public DownloadImageTask() {
-        }
-
-        protected Void doInBackground(ArrayList<String>... urls) {
-            ArrayList<String> urldisplay = urls[0];
-            Bitmap mIcon11 = null;
-            try {
-                for (int i=0; i < urldisplay.size(); i++) {
-                    Log.d("url", urldisplay.get(i));
-                    InputStream in = new java.net.URL(urldisplay.get(i)).openStream();
-                    mIcon11 = BitmapFactory.decodeStream(in);
-                    publishProgress(mIcon11);
-                }
-            } catch (Exception e) {
-                Log.e("Error", e.getMessage());
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        protected void onProgressUpdate(Bitmap... bm) {
-
-        }
-
-        protected void onPostExecute(Void v) {
-
         }
     }
 
@@ -506,5 +492,12 @@ public class Login extends AppCompatActivity {
                 Toast.makeText(this, "연락처 권한 주세영", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+    void resetUpload() {
+        // cancel any pending upload
+        uploading.cancel();
+        uploading = null;
+        progressBar.setProgress(0);
+        // reset the ui
     }
 }
